@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive 3D Foot</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #log {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      font-family: monospace;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div id="log">Click on the foot to mark points</div>
+
+  <!-- Three.js core -->
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+    import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+    import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    let renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    scene.add(light);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    camera.position.set(0, 0.5, 1.5);
+    controls.update();
+
+    // Load GLB foot model
+    const loader = new GLTFLoader();
+    loader.load(
+      "https://raw.githubusercontent.com/Stuart-McNeill/3Dfootselection/af1f2ab634cf68d4510a330dc0a98088fe045851/Left%20foot.glb",
+      function(gltf) {
+        scene.add(gltf.scene);
+      },
+      undefined,
+      function(error) { console.error(error); }
+    );
+
+    // Raycaster for marking
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const logDiv = document.getElementById("log");
+
+    function onClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+
+        // Create a small red sphere marker
+        const markerGeometry = new THREE.SphereGeometry(0.005, 16, 16);
+        const markerMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.copy(point);
+        scene.add(marker);
+
+        // Log coordinates
+        logDiv.innerHTML += `<br>Marked: ${point.x.toFixed(3)}, ${point.y.toFixed(3)}, ${point.z.toFixed(3)}`;
+      }
+    }
+
+    window.addEventListener('click', onClick);
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animate
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
